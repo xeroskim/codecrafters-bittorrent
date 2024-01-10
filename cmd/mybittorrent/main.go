@@ -33,6 +33,10 @@ func decodeList(bencodedString string) (interface{}, error) {
 
 	bencodedString = bencodedString[1 : len(bencodedString)-1]
 
+	if len(bencodedString) == 0 {
+		return bencodedList, err
+	}
+
 	parsedLen := 0
 	for i := 0; len(bencodedString) != 0; i++ {
 		singleBencode, err := decodeBencode(bencodedString)
@@ -42,10 +46,13 @@ func decodeList(bencodedString string) (interface{}, error) {
 
 		bencodedList = append(bencodedList, singleBencode)
 
-		if reflect.TypeOf(singleBencode).Kind() == reflect.String {
+		bencodeType := reflect.TypeOf(singleBencode).Kind()
+		if bencodeType == reflect.String {
 			parsedLen = len(singleBencode.(string)) + 2
-		} else {
+		} else if bencodeType == reflect.Int {
 			parsedLen = len(strconv.Itoa(singleBencode.(int))) + 2
+		} else {
+			parsedLen = 2
 		}
 
 		bencodedString = bencodedString[parsedLen:]
