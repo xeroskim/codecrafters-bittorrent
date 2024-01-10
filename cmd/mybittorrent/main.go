@@ -28,7 +28,7 @@ func decodeBencode(bencodedString string) (interface{}, error) {
 }
 
 func decodeList(bencodedString string) (interface{}, error) {
-	var bencodedList []interface{}
+	bencodedList := []interface{}{}
 	var err error
 
 	bencodedString = bencodedString[1 : len(bencodedString)-1]
@@ -52,7 +52,6 @@ func decodeList(bencodedString string) (interface{}, error) {
 	}
 
 	return bencodedList, err
-
 }
 
 func decodeStr(bencodedString string) (interface{}, error) {
