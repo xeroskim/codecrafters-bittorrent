@@ -39,7 +39,7 @@ func decodeList(bencodedString string) (interface{}, error) {
 
 	parsedLen := 0
 	for i := 0; len(bencodedString) != 0; i++ {
-		fmt.Printf("bencodedString : %s\n", bencodedString)
+		//fmt.Printf("bencodedString : %s\n", bencodedString)
 
 		singleBencode, err := decodeBencode(bencodedString)
 		if err != nil {
@@ -86,11 +86,11 @@ func decodeStr(bencodedString string) (interface{}, error) {
 func decodeInt(bencodedString string) (interface{}, error) {
 	var singleBencode string
 
-	fmt.Printf("bencodedString in decodeInt: %s\n", bencodedString)
+	//fmt.Printf("bencodedString in decodeInt: %s\n", bencodedString)
 	for i := 0; i < len(bencodedString); i++ {
 		if bencodedString[i] == 'e' {
 			singleBencode = bencodedString[1:i]
-			fmt.Printf("singleBencode : %s, i : %d\n", singleBencode, i)
+			//fmt.Printf("singleBencode : %s, i : %d\n", singleBencode, i)
 			break
 		}
 	}
