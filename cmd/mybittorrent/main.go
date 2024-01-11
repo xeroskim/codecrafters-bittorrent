@@ -43,6 +43,7 @@ func decodeDictionary(bencodedString string) (interface{}, int, error) {
 		}
 
 		singleBencoded, singleBencodedLen, err = decodeBencode(bencodedString[i:])
+
 		if !isValue {
 			key = singleBencoded.(string)
 			isValue = true
@@ -50,9 +51,11 @@ func decodeDictionary(bencodedString string) (interface{}, int, error) {
 			bencodedDic[key] = singleBencoded
 			isValue = false
 		}
+
+		dicLen += singleBencodedLen
 	}
 
-	return bencodedDic, dicLen, err
+	return bencodedDic, dicLen + 2, err
 }
 
 func decodeList(bencodedString string) (interface{}, int, error) {
