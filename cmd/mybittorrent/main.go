@@ -21,9 +21,38 @@ func decodeBencode(bencodedString string) (interface{}, int, error) {
 		return decodeInt(bencodedString)
 	} else if strings.HasPrefix(bencodedString, "l") {
 		return decodeList(bencodedString)
+	} else if strings.HasPrefix(bencodedString, "d") {
+		return decodeDictionary(bencodedString)
 	} else {
 		return "", 0, fmt.Errorf("Only strings are supported at the moment")
 	}
+}
+
+func decodeDictionary(bencodedString string) (interface{}, int, error) {
+	bencodedDic := map[string]interface{}{}
+	var singleBencoded interface{}
+	var key string
+	var singleBencodedLen int
+	var dicLen int
+	var err error
+	var isValue bool
+
+	for i := 1; i < len(bencodedString); i += singleBencodedLen {
+		if bencodedString[i] == 'e' {
+			break
+		}
+
+		singleBencoded, singleBencodedLen, err = decodeBencode(bencodedString[i:])
+		if !isValue {
+			key = singleBencoded.(string)
+			isValue = true
+		} else {
+			bencodedDic[key] = singleBencoded
+			isValue = false
+		}
+	}
+
+	return bencodedDic, dicLen, err
 }
 
 func decodeList(bencodedString string) (interface{}, int, error) {
