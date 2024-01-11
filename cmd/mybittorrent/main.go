@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
-	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
@@ -15,55 +14,43 @@ import (
 // Example:
 // - 5:hello -> hello
 // - 10:hello12345 -> hello12345
-func decodeBencode(bencodedString string) (interface{}, error) {
+func decodeBencode(bencodedString string) (interface{}, int, error) {
 	if unicode.IsDigit(rune(bencodedString[0])) {
 		return decodeStr(bencodedString)
 	} else if strings.HasPrefix(bencodedString, "i") {
 		return decodeInt(bencodedString)
-	} else if strings.HasPrefix(bencodedString, "l") && strings.HasSuffix(bencodedString, "e") {
+	} else if strings.HasPrefix(bencodedString, "l") {
 		return decodeList(bencodedString)
 	} else {
-		return "", fmt.Errorf("Only strings are supported at the moment")
+		return "", 0, fmt.Errorf("Only strings are supported at the moment")
 	}
 }
 
-func decodeList(bencodedString string) (interface{}, error) {
+func decodeList(bencodedString string) (interface{}, int, error) {
 	bencodedList := []interface{}{}
+	var singleBencoded interface{}
+	var singleBencodedLen int
+	var listLen int
 	var err error
 
-	bencodedString = bencodedString[1 : len(bencodedString)-1]
+	for i := 1; i < len(bencodedString); i += singleBencodedLen {
+		if bencodedString[i] == 'e' {
+			break
+		}
 
-	if len(bencodedString) == 0 {
-		return bencodedList, err
-	}
-
-	parsedLen := 0
-	for i := 0; len(bencodedString) != 0; i++ {
-		//fmt.Printf("bencodedString : %s\n", bencodedString)
-
-		singleBencode, err := decodeBencode(bencodedString)
+		singleBencoded, singleBencodedLen, err = decodeBencode(bencodedString[i:])
 		if err != nil {
-			return "", err
+			return "", 0, err
 		}
 
-		bencodedList = append(bencodedList, singleBencode)
-
-		bencodeType := reflect.TypeOf(singleBencode).Kind()
-		if bencodeType == reflect.String {
-			parsedLen = len(singleBencode.(string)) + 2
-		} else if bencodeType == reflect.Int {
-			parsedLen = len(strconv.Itoa(singleBencode.(int))) + 2
-		} else {
-			parsedLen = 12
-		}
-
-		bencodedString = bencodedString[parsedLen:]
+		listLen += singleBencodedLen
+		bencodedList = append(bencodedList, singleBencoded)
 	}
 
-	return bencodedList, err
+	return bencodedList, listLen + 2, err
 }
 
-func decodeStr(bencodedString string) (interface{}, error) {
+func decodeStr(bencodedString string) (interface{}, int, error) {
 	var firstColonIndex int
 
 	for i := 0; i < len(bencodedString); i++ {
@@ -77,29 +64,27 @@ func decodeStr(bencodedString string) (interface{}, error) {
 
 	length, err := strconv.Atoi(lengthStr)
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	return bencodedString[firstColonIndex+1 : firstColonIndex+1+length], nil
+	return bencodedString[firstColonIndex+1 : firstColonIndex+1+length], len(lengthStr) + 1 + length, nil
 }
 
-func decodeInt(bencodedString string) (interface{}, error) {
-	var singleBencode string
+func decodeInt(bencodedString string) (interface{}, int, error) {
+	var endMarkerIndex int
 
-	//fmt.Printf("bencodedString in decodeInt: %s\n", bencodedString)
-	for i := 0; i < len(bencodedString); i++ {
+	for i := 1; i < len(bencodedString); i++ {
 		if bencodedString[i] == 'e' {
-			singleBencode = bencodedString[1:i]
-			//fmt.Printf("singleBencode : %s, i : %d\n", singleBencode, i)
+			endMarkerIndex = i
 			break
 		}
 	}
-	decodedInt, err := strconv.Atoi(singleBencode)
+	decodedInt, err := strconv.Atoi(bencodedString[1:endMarkerIndex])
 	if err != nil {
-		return "", err
+		return "", 0, err
 	}
 
-	return decodedInt, nil
+	return decodedInt, endMarkerIndex + 1, nil
 }
 
 func main() {
@@ -109,7 +94,7 @@ func main() {
 	if command == "decode" {
 		bencodedValue := os.Args[2]
 
-		decoded, err := decodeBencode(bencodedValue)
+		decoded, _, err := decodeBencode(bencodedValue)
 		if err != nil {
 			fmt.Println(err)
 			return
