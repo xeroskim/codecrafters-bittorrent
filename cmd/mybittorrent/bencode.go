@@ -2,10 +2,55 @@ package main
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 	"strings"
 	"unicode"
 )
+
+func encodeBencode(decodedData interface{}) (string, error) {
+	var bencodedDic strings.Builder
+	var err error
+	keys := [4]string{"Length", "Name", "PieceLength", "Pieces"}
+
+	switch decodedData.(type) {
+	case map[string]interface{}:
+		bencodedDic.WriteString("d")
+
+		for _, v := range keys {
+			encodedKey, _ := encodeBencode(v)
+			bencodedDic.WriteString(encodedKey)
+
+			encodedValue, _ := encodeBencode(decodedData.(map[string]interface{})[v])
+			bencodedDic.WriteString(encodedValue)
+		}
+
+		bencodedDic.WriteString("e")
+	case []interface{}:
+		bencodedDic.WriteString("l")
+
+		for _, v := range decodedData.([]interface{}) {
+			out, _ := encodeBencode(v)
+			bencodedDic.WriteString(out)
+		}
+
+		bencodedDic.WriteString("e")
+	case string:
+		data := decodedData.(string)
+		bencodedDic.WriteString(strconv.Itoa(len(data)))
+		bencodedDic.WriteString(":")
+		bencodedDic.WriteString(data)
+	case int:
+		data := decodedData.(int)
+		bencodedDic.WriteString("i")
+		bencodedDic.WriteString(strconv.Itoa(data))
+		bencodedDic.WriteString("e")
+	default:
+		return "", fmt.Errorf("Wrong data format while encoding")
+	}
+
+	return bencodedDic.String(), err
+}
 
 func decodeBencode(bencodedString string) (interface{}, int, error) {
 	if unicode.IsDigit(rune(bencodedString[0])) {
@@ -42,6 +87,10 @@ func decodeDictionary(bencodedString string) (interface{}, int, error) {
 			isValue = true
 		} else {
 			bencodedDic[key] = singleBencoded
+			fmt.Printf("key is : %s\n", key)
+			if reflect.TypeOf(singleBencoded).Kind() == reflect.String {
+				fmt.Println([]byte(singleBencoded.(string)))
+			}
 			isValue = false
 		}
 

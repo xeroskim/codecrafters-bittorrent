@@ -1,9 +1,12 @@
 package main
 
 import (
+	"crypto/sha1"
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/fatih/structs"
 )
 
 type TorrentFile struct {
@@ -11,12 +14,12 @@ type TorrentFile struct {
 	Info     struct {
 		Length      int
 		Name        string
-		PieceLength int
+		PieceLength int `json:"piece length"`
 		Pieces      string
 	}
 }
 
-func TorrentInfo(fileName string) (string, int, error) {
+func TorrentInfo(fileName string) (string, int, string, error) {
 	var t TorrentFile
 
 	data, err := os.ReadFile(fileName)
@@ -29,8 +32,23 @@ func TorrentInfo(fileName string) (string, int, error) {
 		fmt.Println("decodeBencode failed")
 	}
 
-	jsonOutput, _ := json.Marshal(decodedTorrentInfo)
-	json.Unmarshal(jsonOutput, &t)
+	pieces := decodedTorrentInfo.(map[string]interface{})["info"].(map[string]interface{})["pieces"].(string)
 
-	return t.Announce, t.Info.Length, err
+	jsonOutput, _ := json.Marshal(decodedTorrentInfo)
+	fmt.Println(string(jsonOutput))
+	err = json.Unmarshal(jsonOutput, &t)
+	t.Info.Pieces = pieces
+
+	fmt.Println("info pieces before encodeBencode")
+	fmt.Println(t.Info.PieceLength)
+	fmt.Println([]byte(t.Info.Pieces))
+
+	encodedInfo, _ := encodeBencode(structs.Map(t.Info))
+	fmt.Println(encodedInfo)
+
+	h := sha1.New()
+	h.Write([]byte(encodedInfo))
+	bs := h.Sum(nil)
+
+	return t.Announce, t.Info.Length, fmt.Sprintf("%x", bs), err
 }
