@@ -8,10 +8,7 @@
 
 module github.com/codecrafters-io/bittorrent-starter-go
 
-//go 1.21.4
-go 1.23
-
-toolchain go1.21.5
+go 1.21.4
 
 require (
 	github.com/fatih/structs v1.1.0 // indirect
