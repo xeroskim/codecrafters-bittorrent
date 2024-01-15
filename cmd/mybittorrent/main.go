@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+
+	"github.com/jackpal/bencode-go"
 )
 
 func main() {
@@ -25,15 +27,20 @@ func main() {
 	case "info":
 		fileName := os.Args[2]
 
-		url, length, hash, err := TorrentInfo(fileName)
+		f, err := os.Open(fileName)
 		if err != nil {
 			fmt.Println(err)
-			return
 		}
 
-		fmt.Printf("Tracker URL: %s\n", url)
-		fmt.Printf("Length: %d\n", length)
-		fmt.Printf("Info Hash: %s\n", hash)
+		var t TorrentFile
+		err = bencode.Unmarshal(f, &t)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		fmt.Printf("Tracker URL: %s\n", t.Announce)
+		fmt.Printf("Length: %d\n", t.Info.Length)
+		fmt.Printf("Info Hash: %x\n", t.hash())
 
 	default:
 		fmt.Println("Unknown command: " + command)

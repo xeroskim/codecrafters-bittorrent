@@ -8,9 +8,11 @@
 
 module github.com/codecrafters-io/bittorrent-starter-go
 
-go 1.19
+go 1.21.4
+
+toolchain go1.21.5
 
 require (
 	github.com/fatih/structs v1.1.0 // indirect
-	github.com/jackpal/bencode-go v1.0.0 // indirect
+	github.com/jackpal/bencode-go v1.0.2 // indirect
 )

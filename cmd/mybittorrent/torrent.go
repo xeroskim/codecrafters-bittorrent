@@ -1,54 +1,43 @@
 package main
 
 import (
+	"bytes"
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
-	"os"
 
-	"github.com/fatih/structs"
+	"github.com/jackpal/bencode-go"
 )
 
 type TorrentFile struct {
 	Announce string
 	Info     struct {
-		Length      int
-		Name        string
-		PieceLength int `json:"piece length"`
-		Pieces      string
+		Length      int    `bencode:"length"`
+		Name        string `bencode:"name"`
+		PieceLength int    `bencode:"piece length"`
+		Pieces      string `bencode:"pieces"`
 	}
 }
 
-func TorrentInfo(fileName string) (string, int, string, error) {
-	var t TorrentFile
-
-	data, err := os.ReadFile(fileName)
-	if err != nil {
-		fmt.Println("File open failed")
-	}
-
-	decodedTorrentInfo, _, err := decodeBencode(string(data))
-	if err != nil {
-		fmt.Println("decodeBencode failed")
-	}
-
-	pieces := decodedTorrentInfo.(map[string]interface{})["info"].(map[string]interface{})["pieces"].(string)
-
-	jsonOutput, _ := json.Marshal(decodedTorrentInfo)
-	fmt.Println(string(jsonOutput))
-	err = json.Unmarshal(jsonOutput, &t)
-	t.Info.Pieces = pieces
-
-	fmt.Println("info pieces before encodeBencode")
-	fmt.Println(t.Info.PieceLength)
-	fmt.Println([]byte(t.Info.Pieces))
-
-	encodedInfo, _ := encodeBencode(structs.Map(t.Info))
-	fmt.Println(encodedInfo)
-
+func (t TorrentFile) hash() string {
+	bencodedString := t.encode()
 	h := sha1.New()
-	h.Write([]byte(encodedInfo))
-	bs := h.Sum(nil)
+	h.Write([]byte(bencodedString))
+	return string(h.Sum(nil))
+}
 
-	return t.Announce, t.Info.Length, fmt.Sprintf("%x", bs), err
+func (t TorrentFile) encode() string {
+	b := bytes.NewBufferString("")
+
+	err := bencode.Marshal(b, t.Info)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	return b.String()
+}
+
+func (t TorrentFile) decode(s string) any {
+	b := bytes.NewBufferString(s)
+	decoded, _ := bencode.Decode(b)
+	return decoded
 }
