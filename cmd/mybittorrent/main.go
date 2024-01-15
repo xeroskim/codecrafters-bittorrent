@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/jackpal/bencode-go"
 )
@@ -16,7 +17,8 @@ func main() {
 	case "decode":
 		bencodedValue := os.Args[2]
 
-		decoded, _, err := decodeBencode(bencodedValue)
+		stringReader := strings.NewReader(bencodedValue)
+		decoded, err := bencode.Decode(stringReader)
 		if err != nil {
 			fmt.Println(err)
 			return
