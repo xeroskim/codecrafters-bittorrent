@@ -8,7 +8,8 @@
 
 module github.com/codecrafters-io/bittorrent-starter-go
 
-go 1.21.4
+//go 1.21.4
+go 1.23
 
 toolchain go1.21.5
 
