@@ -1,6 +1,2 @@
-github.com/fatih/structs v1.1.0 h1:Q7juDM0QtcnhCpeyLGQKyg4TOIghuNXrkL32pHAUMxo=
-github.com/fatih/structs v1.1.0/go.mod h1:9NiDSp5zOcgEDl+j00MP/WkGVPOlPRLejGD8Ga6PJ7M=
-github.com/jackpal/bencode-go v1.0.0 h1:lzbSPPqqSfWQnqVNe/BBY1NXdDpncArxShL10+fmFus=
-github.com/jackpal/bencode-go v1.0.0/go.mod h1:5FSBQ74yhCl5oQ+QxRPYzWMONFnxbL68/23eezsBI5c=
 github.com/jackpal/bencode-go v1.0.2 h1:LcCNfZ344u0LpBPOZNjpCLps/wUOuN4r87Fy9+5yU8g=
 github.com/jackpal/bencode-go v1.0.2/go.mod h1:6jI9mUjO3GQbZti3JizEfxTzRfWOM8oBBcwbwlTfceI=
