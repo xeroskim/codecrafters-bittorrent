@@ -36,7 +36,7 @@ func (t TorrentFile) encode() string {
 	return b.String()
 }
 
-func (t TorrentFile) decode(s string) any {
+func (t TorrentFile) decode(s string) interface{} {
 	b := bytes.NewBufferString(s)
 	decoded, _ := bencode.Decode(b)
 	return decoded
