@@ -2,9 +2,12 @@ package main
 
 import (
 	"encoding/json"
+	"encoding/binary"
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
+	"io/ioutil"
 	"os"
 	"strings"
 
@@ -74,8 +77,6 @@ func main() {
 		v.Add("left", fmt.Sprint(t.Info.Length))
 		v.Add("compact", "1")
 		u := t.Announce + "?" + v.Encode()
-		fmt.Println(u)
-		fmt.Println(t.Info.Length)
 
 		resp, err := http.Get(u)
 		if err != nil {
@@ -83,16 +84,34 @@ func main() {
 		}
 		defer resp.Body.Close()
 
-		type TrackerResponse struct {
-			Interval int
-			Peers    string
-		}
-
-		decoder := json.NewDecoder(resp.Body)
-		var r TrackerResponse
-		err = decoder.Decode(&r)
+		b, err := ioutil.ReadAll(resp.Body)
 		if err != nil {
 			fmt.Println(err)
+		}
+
+		stringReader := strings.NewReader(string(b))
+		decoded, err := bencode.Decode(stringReader)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+
+		peers := []byte(decoded.(map[string]interface{})["peers"].(string))
+
+		type Addr struct {
+			Ip net.IP
+			Port uint16
+		}
+		peerList := make([]Addr, 0, len(peers) / 6)
+		for i := 0; i < len(peers); i+=6 {
+			peerList = append(peerList, Addr{
+				Ip: net.IP(peers[i : i+4]),
+				Port: binary.BigEndian.Uint16(peers[i+4 : i+6]),
+			})
+		}
+
+		for _, addr := range peerList {
+			fmt.Printf("%s:%d\n", addr.Ip, addr.Port)
 		}
 
 	default:
