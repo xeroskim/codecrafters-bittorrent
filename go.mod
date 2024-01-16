@@ -8,8 +8,6 @@
 
 module github.com/codecrafters-io/bittorrent-starter-go
 
-go 1.21.4
-
-toolchain go1.21.5
+go 1.14
 
 require github.com/jackpal/bencode-go v1.0.2
