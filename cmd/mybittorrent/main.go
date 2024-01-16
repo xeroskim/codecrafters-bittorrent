@@ -43,7 +43,12 @@ func main() {
 		fmt.Printf("Tracker URL: %s\n", t.Announce)
 		fmt.Printf("Length: %d\n", t.Info.Length)
 		fmt.Printf("Info Hash: %x\n", t.hash())
+		fmt.Printf("Piece Length: %d\n", t.Info.PieceLength)
+		fmt.Printf("Piece Hashes:\n")
 
+		for i := 0; i < len(t.Info.Pieces); i += 20 {
+			fmt.Printf("%x\n", t.Info.Pieces[i:i+20])
+		}
 	default:
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
