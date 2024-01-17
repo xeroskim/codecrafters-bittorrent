@@ -114,6 +114,41 @@ func main() {
 			fmt.Printf("%s:%d\n", addr.Ip, addr.Port)
 		}
 
+	case "handshake":
+		fileName := os.Args[2]
+		peerAddr := os.Args[3]
+
+		f, err := os.Open(fileName)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var t TorrentFile
+		err = bencode.Unmarshal(f, &t)
+		if err != nil {
+			fmt.Println(err)
+		}
+
+		var syn []byte
+		syn = append(syn, 19)
+		syn = append(syn, "BitTorrent protocol"...)
+		syn = append(syn, strings.Repeat("\x00", 8)...)
+		syn = append(syn, t.hash()...)
+		syn = append(syn, "00112233445566778899"...)
+
+		conn, err := net.Dial("tcp", peerAddr)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer conn.Close()
+
+		conn.Write(syn)
+
+		rb := make([]byte, 4096)
+		_, err = conn.Read(rb)
+
+		fmt.Printf("Peer ID: %x\n", rb[48:68])
+
 	default:
 		fmt.Println("Unknown command: " + command)
 		os.Exit(1)
