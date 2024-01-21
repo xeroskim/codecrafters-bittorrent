@@ -153,6 +153,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 		io.ReadFull(conn, body)
 
 		pb = append(pb, body[8:]...)
+		body = nil
 	}
 
 	h := sha1.New()
