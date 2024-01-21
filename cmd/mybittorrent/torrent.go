@@ -3,9 +3,15 @@ package main
 import (
 	"bytes"
 	"crypto/sha1"
+	"encoding/binary"
 	"fmt"
+	"io/ioutil"
+	"math"
 	"net"
+	"net/http"
 	"net/url"
+	"os"
+	"strings"
 
 	"github.com/jackpal/bencode-go"
 )
@@ -20,12 +26,7 @@ type TorrentFile struct {
 	}
 }
 
-type Addr struct {
-	Ip   net.IP
-	Port uint16
-}
-
-func MakeTorrent(fileName string) *TorrentFile, err {
+func MakeTorrent(fileName string) (*TorrentFile, error) {
 	var t TorrentFile
 
 	f, err := os.Open(fileName)
@@ -41,7 +42,7 @@ func MakeTorrent(fileName string) *TorrentFile, err {
 	return &t, err
 }
 
-func handshake(t TorrentFile, peerAddr string) []byte, err {
+func (t *TorrentFile) handshake(conn net.Conn) ([]byte, error) {
 	var syn []byte
 	syn = append(syn, 19)
 	syn = append(syn, "BitTorrent protocol"...)
@@ -49,16 +50,10 @@ func handshake(t TorrentFile, peerAddr string) []byte, err {
 	syn = append(syn, t.Hash()...)
 	syn = append(syn, "00112233445566778899"...)
 
-	conn, err := net.Dial("tcp", peerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("Failed connect with peer address (%w)", err)
-	}
-	defer conn.Close()
-
 	conn.Write(syn)
 
-	rb := make([]byte, 4096)
-	_, err = conn.Read(rb)
+	rb := make([]byte, 68)
+	_, err := conn.Read(rb)
 	if err != nil {
 		return nil, fmt.Errorf("Failed read from peer address (%w)", err)
 	}
@@ -66,7 +61,7 @@ func handshake(t TorrentFile, peerAddr string) []byte, err {
 	return rb, err
 }
 
-func (t* TorrentFile) GetPeers() []Addr, err {
+func (t *TorrentFile) GetPeers() ([]string, error) {
 	v := url.Values{}
 	v.Set("info_hash", t.Hash())
 	v.Add("peer_id", "00112233445566778899")
@@ -95,42 +90,78 @@ func (t* TorrentFile) GetPeers() []Addr, err {
 	}
 
 	peers := []byte(decoded.(map[string]interface{})["peers"].(string))
-	peerList := make([]Addr, 0, len(peers)/6)
+	peerList := make([]string, 0, len(peers)/6)
 	for i := 0; i < len(peers); i += 6 {
-		peerList = append(peerList, Addr{
-			Ip:   net.IP(peers[i : i+4]),
-			Port: binary.BigEndian.Uint16(peers[i+4 : i+6]),
-		})
+		peerList = append(peerList, fmt.Sprintf(
+			"%s:%d",
+			net.IP(peers[i:i+4]),
+			binary.BigEndian.Uint16(peers[i+4:i+6]),
+		))
 	}
 
 	return peerList, nil
 }
 
-func (t* TorrentFile) Hash() string {
+func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error) {
+	_, err := t.handshake(conn)
+	if err != nil {
+		return nil, fmt.Errorf("Failed to handshake (%w)", err)
+	}
+
+	// bitfield message
+	rb := make([]byte, 8)
+	_, err = conn.Read(rb)
+	if err != nil {
+		return nil, fmt.Errorf("Failed read from peer address (%w)", err)
+	}
+
+	// interested message
+	sb := []byte{0, 0, 0, 5, 2}
+	conn.Write(sb)
+
+	// unchoke message
+	rb = make([]byte, 8)
+	_, err = conn.Read(rb)
+
+	// request message
+	sb = make([]byte, 17)
+	pb := make([]byte, 0)
+	sb[3] = 17
+	sb[4] = 6
+	for i := 0; i < t.Info.PieceLength; i += 16 * 1024 {
+		length := math.Min(float64(t.Info.PieceLength-i), float64(16*1024))
+
+		binary.BigEndian.PutUint32(sb[5:], uint32(pieceNum))
+		binary.BigEndian.PutUint32(sb[9:], uint32(i))
+		binary.BigEndian.PutUint32(sb[13:], uint32(length))
+		conn.Write(sb)
+
+		rb = make([]byte, uint32(length))
+		conn.Read(rb)
+		pb = append(pb, rb[13:]...)
+	}
+
+	return pb, err
+}
+
+func (t *TorrentFile) Hash() string {
 	bencodedString := t.encode()
 	h := sha1.New()
 	h.Write([]byte(bencodedString))
 	return string(h.Sum(nil))
 }
 
-func (t* TorrentFile) encode() string {
+func (t *TorrentFile) encode() string {
 	b := bytes.NewBufferString("")
 
-	err := bencode.Marshal(b, t.Info)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to marshal file (%w)", err)
-	}
+	bencode.Marshal(b, t.Info)
 
 	return b.String()
 }
 
-func (t* TorrentFile) decode(s string) interface{} {
+func (t *TorrentFile) decode(s string) interface{} {
 	b := bytes.NewBufferString(s)
-	decoded, err := bencode.Decode(b)
-	if err != nil {
-		return nil, fmt.Errorf("Failed to decode bencoded string (%w)", err)
-	}
+	decoded, _ := bencode.Decode(b)
+
 	return decoded
 }
-
-
