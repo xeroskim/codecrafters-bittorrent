@@ -109,7 +109,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 		return nil, fmt.Errorf("Failed to handshake (%w)", err)
 	}
 
-	// bitfield message
+	// bitfield message.
 	rb := make([]byte, 8)
 	_, err = conn.Read(rb)
 	if err != nil {
