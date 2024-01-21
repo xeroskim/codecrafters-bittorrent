@@ -5,6 +5,7 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math"
 	"net"
@@ -128,20 +129,41 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	pb := make([]byte, 0)
 	sb[3] = 17
 	sb[4] = 6
-	for i := 0; i < t.Info.PieceLength; i += 1 << 14 {
-		length := math.Min(float64(t.Info.PieceLength-i), float64(16*1024))
+
+	var PieceLength int
+	if pieceNum*t.Info.PieceLength > t.Info.Length {
+		PieceLength = t.Info.Length - t.Info.PieceLength*(pieceNum-1)
+	} else {
+		PieceLength = t.Info.PieceLength
+	}
+
+	for i := 0; i < PieceLength; i += 1 << 14 {
+		length := math.Min(float64(PieceLength-i), float64(1<<14))
 
 		binary.BigEndian.PutUint32(sb[5:], uint32(pieceNum))
 		binary.BigEndian.PutUint32(sb[9:], uint32(i))
 		binary.BigEndian.PutUint32(sb[13:], uint32(length))
 		conn.Write(sb)
 
-		rb = make([]byte, uint32(13+length))
-		conn.Read(rb)
-		pb = append(pb, rb[13:13+int(length)]...)
+		header := make([]byte, 5)
+		io.ReadFull(conn, header)
+		bodyLength := binary.BigEndian.Uint32(header[0:4]) - 1
+
+		body := make([]byte, bodyLength)
+		io.ReadFull(conn, body)
+
+		pb = append(pb, body[8:]...)
 	}
 
-	fmt.Println(len(pb))
+	h := sha1.New()
+	h.Write(pb)
+	hsum := string(h.Sum(nil))
+
+	pieceHash := t.Info.Pieces[20*pieceNum : 20*pieceNum+20]
+	if hsum != pieceHash {
+		return nil, fmt.Errorf("Wrong hash got %x, want %x\n", hsum, pieceHash)
+	}
+
 	return pb, err
 }
 
