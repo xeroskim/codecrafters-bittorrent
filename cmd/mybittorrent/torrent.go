@@ -128,7 +128,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	pb := make([]byte, 0)
 	sb[3] = 17
 	sb[4] = 6
-	for i := 0; i < t.Info.PieceLength; i += 16 * 1024 {
+	for i := 0; i < t.Info.PieceLength; i += 1 << 14 {
 		length := math.Min(float64(t.Info.PieceLength-i), float64(16*1024))
 
 		binary.BigEndian.PutUint32(sb[5:], uint32(pieceNum))
