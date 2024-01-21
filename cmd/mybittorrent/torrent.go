@@ -12,7 +12,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"runtime"
 	"strings"
 
 	"github.com/jackpal/bencode-go"
@@ -132,8 +131,8 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	sb[4] = 6
 
 	var PieceLength int
-	if pieceNum*t.Info.PieceLength > t.Info.Length {
-		PieceLength = t.Info.Length - t.Info.PieceLength*(pieceNum-1)
+	if (pieceNum+1)*t.Info.PieceLength > t.Info.Length {
+		PieceLength = t.Info.Length - t.Info.PieceLength*pieceNum
 	} else {
 		PieceLength = t.Info.PieceLength
 	}
@@ -147,15 +146,17 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 		conn.Write(sb)
 
 		header := make([]byte, 5)
-		io.ReadFull(conn, header)
-		bodyLength := binary.BigEndian.Uint32(header[0:4]) - 1
+		if _, err := io.ReadFull(conn, header); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
 
+		bodyLength := binary.BigEndian.Uint32(header[0:4]) - 1
 		body := make([]byte, bodyLength)
-		io.ReadFull(conn, body)
+		if _, err := io.ReadFull(conn, body); err != nil {
+			return nil, fmt.Errorf("%w", err)
+		}
 
 		pb = append(pb, body[8:]...)
-		body = nil
-		runtime.GC()
 	}
 
 	h := sha1.New()
