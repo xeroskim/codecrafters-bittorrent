@@ -136,11 +136,12 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 		binary.BigEndian.PutUint32(sb[13:], uint32(length))
 		conn.Write(sb)
 
-		rb = make([]byte, uint32(length))
+		rb = make([]byte, uint32(13+length))
 		conn.Read(rb)
-		pb = append(pb, rb[13:]...)
+		pb = append(pb, rb[13:13+int(length)]...)
 	}
 
+	fmt.Println(len(pb))
 	return pb, err
 }
 
