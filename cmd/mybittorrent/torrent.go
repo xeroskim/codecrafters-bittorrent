@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime"
 	"strings"
 
 	"github.com/jackpal/bencode-go"
@@ -154,6 +155,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 
 		pb = append(pb, body[8:]...)
 		body = nil
+		runtime.GC()
 	}
 
 	h := sha1.New()
