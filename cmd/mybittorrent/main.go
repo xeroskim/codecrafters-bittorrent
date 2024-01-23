@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"net"
 	"os"
 	"strconv"
@@ -91,10 +90,24 @@ func main() {
 		pieceData, err := t.DownloadPiece(conn, pieceNum)
 		check(err)
 
-		err = ioutil.WriteFile(outName, pieceData, 0644)
+		err = os.WriteFile(outName, pieceData, 0644)
 		check(err)
 
 		fmt.Printf("Piece %d downloaded to %s.\n", pieceNum, outName)
+	case "download":
+		outName := os.Args[3]
+		fileName := os.Args[4]
+
+		t, err := MakeTorrent(fileName)
+		check(err)
+
+		fileData, err := t.Download()
+		check(err)
+
+		err = os.WriteFile(outName, fileData, 0644)
+		check(err)
+
+		fmt.Printf("Downloaded %s to %s.\n", fileName, outName)
 
 	default:
 		fmt.Println("Unknown command: " + command)

@@ -11,3 +11,8 @@ module github.com/codecrafters-io/bittorrent-starter-go
 go 1.14
 
 require github.com/jackpal/bencode-go v1.0.2
+
+require (
+	github.com/golang-collections/go-datastructures v0.0.0-20150211160725-59788d5eb259 // indirect
+	golang.org/x/sync v0.6.0 // indirect
+)

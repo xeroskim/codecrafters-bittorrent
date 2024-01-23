@@ -6,14 +6,15 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"math"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 
+	queue "github.com/golang-collections/go-datastructures/queue"
 	"github.com/jackpal/bencode-go"
 )
 
@@ -79,7 +80,7 @@ func (t *TorrentFile) GetPeers() ([]string, error) {
 	}
 	defer resp.Body.Close()
 
-	b, err := ioutil.ReadAll(resp.Body)
+	b, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to read response body (%w)", err)
 	}
@@ -103,7 +104,79 @@ func (t *TorrentFile) GetPeers() ([]string, error) {
 	return peerList, nil
 }
 
-func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error) {
+type PieceInfo struct {
+	pieceData  []byte
+	pieceIndex int
+}
+
+func (t *TorrentFile) Download() ([]byte, error) {
+	var wg sync.WaitGroup
+	var fileData []byte
+	pieceNum := int64(math.Ceil(float64(t.Info.Length) / float64(t.Info.PieceLength)))
+	pieceDataList := make([][]byte, pieceNum)
+	q := queue.New(pieceNum)
+
+	fmt.Printf("Download start! Total piece num : %d\n", pieceNum)
+
+	for i := 0; i < int(pieceNum); i++ {
+		q.Put(i)
+	}
+
+	peerList, err := t.GetPeers()
+	if err != nil {
+		return nil, err
+	}
+
+	errChannel := make(chan error, len(peerList))
+	wg.Add(len(peerList))
+	// goroutine per peer
+	for _, peer := range peerList {
+		go func(peer string) error {
+			defer wg.Done()
+
+			for i, err := q.Get(1); !q.Empty(); {
+				if err != nil {
+					return fmt.Errorf("Error while getting from queue (%w)\n", err)
+				}
+				pieceIndex := i[0].(int)
+
+				conn, err := net.Dial("tcp", peer)
+				if err != nil {
+					q.Put(i)
+					return fmt.Errorf("Error while connecting tcp (%w)\n", err)
+				}
+
+				pieceData, err := t.DownloadPiece(conn, pieceIndex)
+				if err != nil {
+					q.Put(i)
+					return fmt.Errorf("Error while downloading piece (%w)\n", err)
+				}
+
+				pieceDataList[pieceIndex] = pieceData
+				fmt.Printf("Piece %d downloaded\n", pieceIndex)
+			}
+
+			return nil
+		}(peer)
+	}
+
+	wg.Wait()
+	close(errChannel)
+
+	for err := range errChannel {
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	for i := 0; i < int(pieceNum); i++ {
+		fileData = append(fileData, pieceDataList[i]...)
+	}
+
+	return fileData, nil
+}
+
+func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceIndex int) ([]byte, error) {
 	_, err := t.handshake(conn)
 	if err != nil {
 		return nil, fmt.Errorf("Failed to handshake (%w)", err)
@@ -131,8 +204,8 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	sb[4] = 6
 
 	var PieceLength int
-	if (pieceNum+1)*t.Info.PieceLength > t.Info.Length {
-		PieceLength = t.Info.Length - t.Info.PieceLength*pieceNum
+	if (pieceIndex+1)*t.Info.PieceLength > t.Info.Length {
+		PieceLength = t.Info.Length - t.Info.PieceLength*pieceIndex
 	} else {
 		PieceLength = t.Info.PieceLength
 	}
@@ -140,7 +213,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	for i := 0; i < PieceLength; i += 1 << 14 {
 		length := math.Min(float64(PieceLength-i), float64(1<<14))
 
-		binary.BigEndian.PutUint32(sb[5:], uint32(pieceNum))
+		binary.BigEndian.PutUint32(sb[5:], uint32(pieceIndex))
 		binary.BigEndian.PutUint32(sb[9:], uint32(i))
 		binary.BigEndian.PutUint32(sb[13:], uint32(length))
 		conn.Write(sb)
@@ -163,7 +236,7 @@ func (t *TorrentFile) DownloadPiece(conn net.Conn, pieceNum int) ([]byte, error)
 	h.Write(pb)
 	hsum := string(h.Sum(nil))
 
-	pieceHash := t.Info.Pieces[20*pieceNum : 20*pieceNum+20]
+	pieceHash := t.Info.Pieces[20*pieceIndex : 20*pieceIndex+20]
 	if hsum != pieceHash {
 		return nil, fmt.Errorf("Wrong hash got %x, want %x\n", hsum, pieceHash)
 	}
