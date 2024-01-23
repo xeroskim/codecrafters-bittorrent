@@ -142,6 +142,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 				pieceIndex := i[0].(int)
 
 				conn, err := net.Dial("tcp", peer)
+				defer conn.Close()
 				if err != nil {
 					q.Put(i)
 					errChannel <- err
@@ -157,6 +158,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 				pieceDataList[pieceIndex] = pieceData
 				fmt.Printf("Piece %d downloaded\n", pieceIndex)
+				fmt.Printf("Queue empty? %t\n", q.Empty)
 			}
 		}(peer)
 	}
