@@ -136,20 +136,21 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 			for i, err := q.Get(1); !q.Empty(); {
 				if err != nil {
-					return fmt.Errorf("Error while getting from queue (%w)\n", err)
+					errChannel <- err
+					return
 				}
 				pieceIndex := i[0].(int)
 
 				conn, err := net.Dial("tcp", peer)
 				if err != nil {
 					q.Put(i)
-					return fmt.Errorf("Error while connecting tcp (%w)\n", err)
+					errChannel <- err
 				}
 
 				pieceData, err := t.DownloadPiece(conn, pieceIndex)
 				if err != nil {
 					q.Put(i)
-					return fmt.Errorf("Error while downloading piece (%w)\n", err)
+					errChannel <- err
 				}
 
 				pieceDataList[pieceIndex] = pieceData
