@@ -131,7 +131,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	wg.Add(len(peerList))
 	// goroutine per peer
 	for _, peer := range peerList {
-		go func(peer string) error {
+		go func(peer string) {
 			defer wg.Done()
 
 			for i, err := q.Get(1); !q.Empty(); {
@@ -156,8 +156,6 @@ func (t *TorrentFile) Download() ([]byte, error) {
 				pieceDataList[pieceIndex] = pieceData
 				fmt.Printf("Piece %d downloaded\n", pieceIndex)
 			}
-
-			return nil
 		}(peer)
 	}
 
