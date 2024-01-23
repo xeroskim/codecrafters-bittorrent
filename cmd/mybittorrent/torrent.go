@@ -145,12 +145,14 @@ func (t *TorrentFile) Download() ([]byte, error) {
 				if err != nil {
 					q.Put(i)
 					errChannel <- err
+					continue
 				}
 
 				pieceData, err := t.DownloadPiece(conn, pieceIndex)
 				if err != nil {
 					q.Put(i)
 					errChannel <- err
+					continue
 				}
 
 				pieceDataList[pieceIndex] = pieceData
