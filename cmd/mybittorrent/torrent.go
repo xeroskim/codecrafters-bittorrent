@@ -158,7 +158,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 				pieceDataList[pieceIndex] = pieceData
 				fmt.Printf("Piece %d downloaded\n", pieceIndex)
-				fmt.Printf("Queue empty? %t\n", q.Empty)
+				fmt.Printf("Queue empty? %t\n", q.Empty())
 			}
 		}(peer)
 	}
