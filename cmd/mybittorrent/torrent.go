@@ -115,7 +115,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	pieceDataList := make([][]byte, pieceNum)
 	downloadQueue := make(chan int, pieceNum)
 
-	fmt.Printf("Download start! Total piece num : %d\n", pieceNum)
+	//fmt.Printf("Download start! Total piece num : %d\n", pieceNum)
 
 	for i := 0; i < int(pieceNum); i++ {
 		downloadQueue <- i
@@ -135,7 +135,6 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 			for ; len(downloadQueue) != 0; {
 				pieceIndex := <- downloadQueue
-				fmt.Println(pieceIndex)
 
 				conn, err := net.Dial("tcp", peer)
 				if err != nil {
@@ -146,8 +145,6 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 				pieceData, err := t.DownloadPiece(conn, pieceIndex)
 				if err != nil {
-					fmt.Println("%w", err)
-
 					downloadQueue <- pieceIndex
 					errChannel <- err
 					continue
