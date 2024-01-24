@@ -14,7 +14,6 @@ import (
 	"strings"
 	"sync"
 
-	queue "github.com/golang-collections/go-datastructures/queue"
 	"github.com/jackpal/bencode-go"
 )
 
@@ -114,12 +113,12 @@ func (t *TorrentFile) Download() ([]byte, error) {
 	var fileData []byte
 	pieceNum := int64(math.Ceil(float64(t.Info.Length) / float64(t.Info.PieceLength)))
 	pieceDataList := make([][]byte, pieceNum)
-	q := queue.New(pieceNum)
+	downloadQueue := make(chan int, pieceNum)
 
 	fmt.Printf("Download start! Total piece num : %d\n", pieceNum)
 
 	for i := 0; i < int(pieceNum); i++ {
-		q.Put(i)
+		downloadQueue <- i
 	}
 
 	peerList, err := t.GetPeers()
@@ -134,31 +133,33 @@ func (t *TorrentFile) Download() ([]byte, error) {
 		go func(peer string) {
 			defer wg.Done()
 
-			for i, err := q.Get(1); !q.Empty(); {
+			for ; len(downloadQueue) != 0; {
+				pieceIndex := <- downloadQueue
+				fmt.Println(pieceIndex)
 				if err != nil {
 					errChannel <- err
 					return
 				}
-				pieceIndex := i[0].(int)
 
 				conn, err := net.Dial("tcp", peer)
 				defer conn.Close()
 				if err != nil {
-					q.Put(i)
+					downloadQueue <- pieceIndex
 					errChannel <- err
 					continue
 				}
 
 				pieceData, err := t.DownloadPiece(conn, pieceIndex)
 				if err != nil {
-					q.Put(i)
+					fmt.Println("%w", err)
+
+					downloadQueue <- pieceIndex
 					errChannel <- err
 					continue
 				}
 
 				pieceDataList[pieceIndex] = pieceData
 				fmt.Printf("Piece %d downloaded\n", pieceIndex)
-				fmt.Printf("Queue empty? %t\n", q.Empty())
 			}
 		}(peer)
 	}
@@ -168,6 +169,7 @@ func (t *TorrentFile) Download() ([]byte, error) {
 
 	for err := range errChannel {
 		if err != nil {
+			fmt.Println("error occured")
 			return nil, err
 		}
 	}
