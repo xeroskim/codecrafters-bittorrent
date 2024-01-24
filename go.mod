@@ -15,4 +15,4 @@ require (
 	github.com/jackpal/bencode-go v1.0.2
 )
 
-require github.com/stretchr/testify v1.8.4 // indirect
+//require github.com/stretchr/testify v1.8.4 // indirect
